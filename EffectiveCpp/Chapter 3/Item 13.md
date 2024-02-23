@@ -77,3 +77,62 @@ auto_ptr 객체를 복사하면 원본 객체는 null로 만든다.
 
 STL 컨테이너는 원소들이 정상적인 복사 동작을 가져야 하기 때문에 auto_ptr은 이들의 원소로 허용되지 않음
 
+---
+
+auto_ptr을 쓸 수 없는 경우 참조 카운팅 방식 스마트 포인터(reference-counting smart pointer: RCSP)가 괜찮은 대안임
+
+RCSP는 특정한 어떤 자원을 참조하는 외부 객체의 개수를 유지하고 있다가 그 개수가 0이 되면 해당 자원을 자동으로 삭제하는 스마트 포인터
+
+TR1에서 제공되는 tr1::shared_ptr이 대표적인 RCSP
+
+```c++
+void f() {
+    ...
+    std::tr1::shared_ptr<Investment> pInv1(createInvestment());
+    std::tr1::shared_ptr<Investment> pInv2(pInv1);
+    pInv1 = pInv2;
+}
+```
+
+복사 동작이 예상대로 이뤄짐 → auto_ptr을 쓸 수 없는 STL 컨테이너 등의 환경에 적합
+
+auto_ptr 및 tr1::shared_ptr은 소멸자 내부에서 delete[] 연산자가 아닌 delete 연산자를 사용함
+
+```c++
+std::auto_ptr<std::string> aps(new std::string[10]);
+```
+
+잘못된 delete가 사용됨
+
+C++ 표준 라이브러리에서는 동적 할당된 배열을 위해 준비된 스마트 포인터가 제공되지 않음
+
+동적으로 할당된 배열은 vector 및 string으로 거의 대체할 수 있기 때문
+
+---
+
+**자원 관리에 객체를 쓰자**
+
+자원 해제 일일이 하다 보면 실수 발생 가능
+
+자원 관리 클래스 활용(auto_ptr, tr1::shared_ptr)
+
+자원 관리 클래스 직접 구현
+
+---
+
+예제에서 createInvestment 함수의 반환 타입이 포인터
+
+반환된 포인터에 대한 delete 호출 잊어버리기 쉬움
+
+인터페이스 수정 → Item 18 참고
+
+---
+
+**자원 누출을 막기 위해, 생성자 안에서 자원을 획득하고 소멸자에서 그것을 해제하는 RAII 객체 사용**
+
+**일반적으로 널리 쓰이는 RAII 클래스는 tr1::shared_ptr과 auto_ptr**
+
+tr1::shared_ptr은 복사 시 동작 직관적
+
+auto_ptr은 원본 객체를 null로 만듦
+
