@@ -19,7 +19,7 @@ C++ 초기화의 나머지 부분은 생성자로 귀결 → 그 객체의 모�
 대입문 대신 멤버 초기화 리스트를 사용하자
 
 ```c++
-ABEntry::ABEntry(const std::string& name, const std::string& address, const std::list<PhoneNumber>& phones) : theName(name), theAddress(address), thePhones(phones), numTimesConsulted(0) {}
+ABEntry::ABEntry(const std::string& name, const std::string& address, const std::list<PhoneNumber>& phones): theName(name), theAddress(address), thePhones(phones), numTimesConsulted(0) {}
 ```
 
 기본제공 타입의 객체도 멤버 초기화 리스트 사용
