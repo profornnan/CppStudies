@@ -156,3 +156,149 @@ pimpl 관용구를 사용하는 Person 같은 클래스를 핸들 클래스(hand
 
 핸들 클래스에서 어떤 함수를 호출하게 되어 있다면, 핸들 클래스에 대응되는 구현 클래스 쪽으로 그 함수 호출을 전달해서 구현 클래스가 실제 작업을 수행하게 만들자
 
+---
+
+Person을 특수 형태의 추상 기본 클래스, 이른 바 인터페이스 클래스(Interface class)로 만드는 방법도 생각해 볼 수 있음
+
+어떤 기능을 나타내는 인터페이스를 추상 기본 클래스를 통해 마련해 놓고, 이 클래스로부터 파생 클래스를 만들 수 있게 하는 것 → Item 34 참고
+
+파생이 목적이기 때문에 데이터 멤버도 없고, 생성자도 없으며, 하나의 가상 소멸자(Item 7 참고)와 인터페이스를 구성하는 순수 가상 함수만 들어 있음
+
+비가상 함수의 구현은 주어진 클래스 계통 내의 모든 클래스에 대해 똑같아야 함 → Item 36 참고
+
+따라서 비가상 함수는 인터페이스 클래스의 일부로서 구현해 두는 편이 이치에 맞음
+
+```c++
+class Person {
+public:
+    virtual ~Person();
+    virtual std::string name() const = 0;
+    virtual std::string birthDate() const = 0;
+    virtual std::string address() const = 0;
+    ...
+};
+```
+
+순수 가상 함수를 포함한 클래스를 인스턴스로 만들기는 불가능함 → Person에 대한 포인터 혹은 참조자로 프로그래밍
+
+인터페이스 클래스의 인터페이스가 수정되지 않는 한 사용자는 다시 컴파일할 필요가 없음
+
+---
+
+인터페이스 클래스를 사용하기 위해서는 객체 생성 수단이 최소한 하나는 있어야 함
+
+대개 이 문제는 파생 클래스의 생성자 역할을 대신하는 어떤 함수를 만들어 놓고 이것을 호출함으로써 해결함
+
+팩토리 함수(Item 13 참고) 혹은 가상 생성자(virtual constructor)
+
+주어진 인터페이스 클래스의 인터페이스를 지원하는 객체를 동적으로 할당한 후, 그 객체의 포인터를 반환
+
+이런 함수는 인터페이스 클래스 내부에 정적 멤버로 선언되는 경우가 많음
+
+```c++
+class Person {
+public:
+    ...
+    static std::tr1::shared_ptr<Person> create(const std::string& name, const Date& birthday, const Address& addr);
+    ...
+};
+```
+
+사용자 쪽에서는 다음과 같이 사용
+
+```c++
+std::string name;
+Date dateOfBirth;
+Address address;
+...
+
+// Person 인터페이스를 지원하는 객체 한 개 생성
+std::tr1::shared_ptr<Person> pp(Person::create(name, dateOfBirth, address));
+...
+std::cout << pp->name() << " was born on " << pp->birthDate() << " and now lives at " << pp->address();
+```
+
+해당 인터페이스 클래스의 인터페이스를 지원하는 구체 클래스(concrete class)가 어디엔가 정의되어야 하고 구체 클래스의 생성자가 호출되어야 함 → 가상 생성자의 구현부를 갖고 있는 파일 안에서 이뤄짐
+
+---
+
+Person 클래스로부터 파생된 RealPerson이라는 구체 클래스가 있다면, 이 클래스는 자신이 상속받은 가상 함수(순수 가상 함수)에 대한 구현부를 제공하는 식으로 만들어졌을 것임
+
+```c++
+class RealPerson: public Person {
+public:
+    RealPerson(const std::string& name, const Date& birthday, const Address& addr): theName(name), theBirthDate(birthday), theAddress(addr) {}
+    
+    virtual ~RealPerson() {}
+    
+    std::string name() const;
+    std::string birthDate() const;
+    std::string address() const;
+    
+private:
+    std::string theName;
+    Date theBirthDate;
+    Address theAddress;
+};
+```
+
+Person::create 함수
+
+```c++
+std::tr1::shared_ptr<Person> Person::create(const std::string& name, const Date& birthday, const Address& addr) {
+    return std::tr1::shared_ptr<Person>(new RealPerson(name, birthday, addr));
+}
+```
+
+---
+
+인터페이스 클래스를 구현하는 용도로 가장 많이 쓰는 메커니즘이 두 가지 있는데, RealPerson 예제는 그 중 하나
+
+인터페이스 클래스로부터 인터페이스 명세를 물려받게 만든 후에, 그 인터페이스에 들어 있는 함수(가상 함수)를 구현하는 것
+
+두 번째 방법은 다중 상속을 하는 것 → Item 40 참고
+
+---
+
+핸들 클래스와 인터페이스 클래스는 구현부로부터 인터페이스를 떼어 놓음으로써 파일들 사이의 컴파일 의존성을 완화시키는 효과를 가져다줌
+
+실행 시간 비용이 들어감
+
+객체 한 개당 필요한 저장 공간이 추가로 늘어남
+
+---
+
+핸들 클래스의 멤버 함수를 호출하면 구현부 객체의 데이터까지 가기 위해 포인터를 타야 함 → 요구되는 간접화 연산이 한 단계 더 증가
+
+객체 하나씩을 저장하는데 필요한 메모리 크기에 구현부 포인터의 크기가 더해짐
+
+구현부 포인터가 동적 할당된 구현부 객체를 가리키도록 어디선가 그 구현부 포인터의 초기화가 일어나야 함(핸들 클래스의 생성자 안에서)
+
+---
+
+인터페이스 클래스의 경우에는 호출되는 함수가 전부 가상 함수라는 것이 약점임
+
+함수 호출이 일어날 때마다 가상 테이블 점프에 따르는 비용이 소모됨 → Item 7 참고
+
+인터페이스 클래스에서 파생된 객체는 전부 가상 테이블 포인터를 지니고 있어야 함 → Item 7 참고
+
+만약 가상 함수를 공급하는 쪽이 인터페이스 클래스밖에 없을 때는, 이 가상 테이블 포인터도 객체 하나를 저장하는 데 필요한 메모리 크기를 늘리는 요인이 됨
+
+---
+
+핸들 클래스와 인터페이스 클래스는 인라인 함수의 도움을 제대로 끌어내기 힘듦
+
+---
+
+개발 도중에는 핸들 클래스 혹은 인터페이스 클래스를 사용
+
+구현부가 바뀌었을 때 사용자에게 미칠 파급 효과를 최소로 만드는 것이 좋음
+
+제품을 출시해야 될 때 다시 고민
+
+---
+
+**컴파일 의존성을 최소화하는 작업의 배경이 되는 가장 기본적인 아이디어는 정의 대신에 선언에 의존하게 만들자는 것. 이 아이디어에 기반한 두 가지 접근 방법은 핸들 클래스와 인터페이스 클래스**
+
+**라이브러리 헤더는 그 자체로 모든 것을 갖추어야 하며 선언부만 갖고 있는 형태여야 함. 이 규칙은 템플릿이 쓰이거나 쓰이지 않거나 동일하게 적용**
+
